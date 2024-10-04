@@ -12,7 +12,7 @@ async function login(page, email, password) {
 
 // Helper function: Get random token
 function randomToken() {
-  return Math.random().toString(36).substr(2);
+  return Math.random().toString(36).substring(2);
 }
 
 // Test for home page
