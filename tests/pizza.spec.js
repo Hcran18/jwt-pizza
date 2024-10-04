@@ -79,12 +79,7 @@ test("logout", async ({ page }) => {
     }
   });
 
-  await page.goto("/");
-  await page.getByRole("link", { name: "Login" }).click();
-  await page.getByPlaceholder("Email address").fill("d@jwt.com");
-  await page.getByPlaceholder("Password").click();
-  await page.getByPlaceholder("Password").fill("a");
-  await page.getByRole("button", { name: "Login" }).click();
+  await login(page, "d@jwt.com", "a");
   await expect(page.getByRole("link", { name: "Logout" })).toBeVisible();
   await page.getByRole("link", { name: "Logout" }).click();
   await expect(page.getByRole("link", { name: "Login" })).toBeVisible();
