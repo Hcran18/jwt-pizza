@@ -45,7 +45,7 @@ test("register", async ({ page }) => {
     if (route.request().method() === "POST") {
       const registerReq = { name: "David Wallace", email: "w@jwt.com", password: "c" };
       const registerRes = {
-        user: { id: 3, name: "David Wallace", email: "w@jwt.com", roles: [{ role: "diner" }] },
+        user: { id: 4, name: "David Wallace", email: "w@jwt.com", roles: [{ role: "diner" }] },
         token: randomToken(),
       };
       expect(route.request().postDataJSON()).toMatchObject(registerReq);
@@ -61,6 +61,33 @@ test("register", async ({ page }) => {
   await page.getByPlaceholder("Password").fill("c");
   await page.getByRole("button", { name: "Register" }).click();
   await expect(page.getByRole("link", { name: "DW" })).toBeVisible(); // Check if user info is visible
+});
+
+test("logout", async ({ page }) => {
+  await page.route("*/**/api/auth", async (route) => {
+    if (route.request().method() === "PUT") {
+      const loginReq = { email: "d@jwt.com", password: "a" };
+      const loginRes = {
+        user: { id: 3, name: "Kai Chen", email: "d@jwt.com", roles: [{ role: "diner" }] },
+        token: randomToken(),
+      };
+      expect(route.request().postDataJSON()).toMatchObject(loginReq);
+      await route.fulfill({ json: loginRes });
+    } else if (route.request().method() === "DELETE") {
+      const logoutRes = { message: "logout successful" };
+      await route.fulfill({ json: logoutRes });
+    }
+  });
+
+  await page.goto("/");
+  await page.getByRole("link", { name: "Login" }).click();
+  await page.getByPlaceholder("Email address").fill("d@jwt.com");
+  await page.getByPlaceholder("Password").click();
+  await page.getByPlaceholder("Password").fill("a");
+  await page.getByRole("button", { name: "Login" }).click();
+  await expect(page.getByRole("link", { name: "Logout" })).toBeVisible();
+  await page.getByRole("link", { name: "Logout" }).click();
+  await expect(page.getByRole("link", { name: "Login" })).toBeVisible();
 });
 
 // Test for about page
