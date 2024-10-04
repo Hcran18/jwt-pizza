@@ -149,6 +149,14 @@ test("about page", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Our employees" })).toBeVisible();
 });
 
+// Test for history page
+test("history page", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("link", { name: "History" })).toBeVisible();
+  await page.getByRole("link", { name: "History" }).click();
+  await expect(page.getByText("Mama Rucci, my my")).toBeVisible();
+});
+
 // Test for purchase with login
 test("purchase with login", async ({ page }) => {
   await setupCommonRoutes(page);
