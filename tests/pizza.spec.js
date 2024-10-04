@@ -15,8 +15,73 @@ function randomToken() {
   return Math.random().toString(36).substr(2);
 }
 
-// Helper function: Set up routes for login and other API requests
-async function setupCommonRoutes(page) {
+// Test for home page
+test("home page", async ({ page }) => {
+  await page.goto("/");
+  expect(await page.title()).toBe("JWT Pizza");
+});
+
+// Test for login functionality
+test("login", async ({ page }) => {
+  await page.route("*/**/api/auth", async (route) => {
+    if (route.request().method() === "PUT") {
+      const loginReq = { email: "d@jwt.com", password: "a" };
+      const loginRes = {
+        user: { id: 3, name: "Kai Chen", email: "d@jwt.com", roles: [{ role: "diner" }] },
+        token: randomToken(),
+      };
+      expect(route.request().postDataJSON()).toMatchObject(loginReq);
+      await route.fulfill({ json: loginRes });
+    }
+  });
+
+  await login(page, "d@jwt.com", "a");
+  await expect(page.getByRole("link", { name: "KC" })).toBeVisible(); // Check if user info is visible
+});
+
+// Test for registration functionality
+test("register", async ({ page }) => {
+  await page.route("*/**/api/auth", async (route) => {
+    if (route.request().method() === "POST") {
+      const registerReq = { name: "David Wallace", email: "w@jwt.com", password: "c" };
+      const registerRes = {
+        user: { id: 3, name: "David Wallace", email: "w@jwt.com", roles: [{ role: "diner" }] },
+        token: randomToken(),
+      };
+      expect(route.request().postDataJSON()).toMatchObject(registerReq);
+      await route.fulfill({ json: registerRes });
+    }
+  });
+
+  await page.goto("/");
+  await page.getByRole("link", { name: "Register" }).click();
+  await expect(page.getByPlaceholder("Full name")).toBeVisible();
+  await page.getByPlaceholder("Full name").fill("David Wallace");
+  await page.getByPlaceholder("Email address").fill("w@jwt.com");
+  await page.getByPlaceholder("Password").fill("c");
+  await page.getByRole("button", { name: "Register" }).click();
+  await expect(page.getByRole("link", { name: "DW" })).toBeVisible(); // Check if user info is visible
+});
+
+// Test for about page
+test("about page", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("link", { name: "About" })).toBeVisible();
+  await page.getByRole("link", { name: "About" }).click();
+  await expect(page.getByText("The secret sauce")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Our employees" })).toBeVisible();
+});
+
+// Test for history page
+test("history page", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("link", { name: "History" })).toBeVisible();
+  await page.getByRole("link", { name: "History" }).click();
+  await expect(page.getByText("Mama Rucci, my my")).toBeVisible();
+});
+
+// Test for purchase with login
+test("purchase with login", async ({ page }) => {
   // Mock login route (PUT)
   await page.route("*/**/api/auth", async (route) => {
     if (route.request().method() === "PUT") {
@@ -27,25 +92,6 @@ async function setupCommonRoutes(page) {
       };
       expect(route.request().postDataJSON()).toMatchObject(loginReq);
       await route.fulfill({ json: loginRes });
-    } else {
-      // Proceed to the next mock in case this is not a login request
-      route.continue();
-    }
-  });
-
-  // Mock register route (POST)
-  await page.route("*/**/api/auth", async (route) => {
-    if (route.request().method() === "POST") {
-      const registerReq = { name: "David Wallace", email: "w@jwt.com", password: "c" };
-      const registerRes = {
-        user: { id: 3, name: "David Wallace", email: "w@jwt.com", roles: [{ role: "diner" }] },
-        token: randomToken(),
-      };
-      expect(route.request().postDataJSON()).toMatchObject(registerReq);
-      await route.fulfill({ json: registerRes });
-    } else {
-      // Proceed to the next mock in case this is not a register request
-      route.continue();
     }
   });
 
@@ -83,10 +129,7 @@ async function setupCommonRoutes(page) {
     expect(route.request().method()).toBe("GET");
     await route.fulfill({ json: franchiseRes });
   });
-}
 
-// Helper function: Set up order route
-async function setupOrderRoute(page) {
   await page.route("*/**/api/order", async (route) => {
     const orderReq = {
       items: [
@@ -112,55 +155,6 @@ async function setupOrderRoute(page) {
     expect(route.request().postDataJSON()).toMatchObject(orderReq);
     await route.fulfill({ json: orderRes });
   });
-}
-
-// Test for home page
-test("home page", async ({ page }) => {
-  await page.goto("/");
-  expect(await page.title()).toBe("JWT Pizza");
-});
-
-// Test for login functionality
-test("login", async ({ page }) => {
-  await setupCommonRoutes(page);
-  await login(page, "d@jwt.com", "a");
-  await expect(page.getByRole("link", { name: "KC" })).toBeVisible(); // Check if user info is visible
-});
-
-// Test for registration functionality
-test("register", async ({ page }) => {
-  await setupCommonRoutes(page);
-  await page.goto("/");
-  await page.getByRole("link", { name: "Register" }).click();
-  await expect(page.getByPlaceholder("Full name")).toBeVisible();
-  await page.getByPlaceholder("Full name").fill("David Wallace");
-  await page.getByPlaceholder("Email address").fill("w@jwt.com");
-  await page.getByPlaceholder("Password").fill("c");
-  await page.getByRole("button", { name: "Register" }).click();
-  await expect(page.getByRole("link", { name: "DW" })).toBeVisible(); // Check if user info is visible
-});
-
-// Test for about page
-test("about page", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.getByRole("link", { name: "About" })).toBeVisible();
-  await page.getByRole("link", { name: "About" }).click();
-  await expect(page.getByText("The secret sauce")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Our employees" })).toBeVisible();
-});
-
-// Test for history page
-test("history page", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.getByRole("link", { name: "History" })).toBeVisible();
-  await page.getByRole("link", { name: "History" }).click();
-  await expect(page.getByText("Mama Rucci, my my")).toBeVisible();
-});
-
-// Test for purchase with login
-test("purchase with login", async ({ page }) => {
-  await setupCommonRoutes(page);
-  await setupOrderRoute(page);
 
   await page.goto("/");
 
