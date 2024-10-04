@@ -140,6 +140,15 @@ test("register", async ({ page }) => {
   await expect(page.getByRole("link", { name: "DW" })).toBeVisible(); // Check if user info is visible
 });
 
+// Test for about page
+test("about page", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("link", { name: "About" })).toBeVisible();
+  await page.getByRole("link", { name: "About" }).click();
+  await expect(page.getByText("The secret sauce")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Our employees" })).toBeVisible();
+});
+
 // Test for purchase with login
 test("purchase with login", async ({ page }) => {
   await setupCommonRoutes(page);
