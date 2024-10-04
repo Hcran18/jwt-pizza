@@ -1,27 +1,52 @@
 import { test, expect } from "playwright-test-coverage";
 
 // Helper function: Log in a user
-async function login(page) {
+async function login(page, email, password) {
   await page.goto("/");
   await page.getByRole("link", { name: "Login" }).click();
   await expect(page.getByPlaceholder("Email address")).toBeVisible();
-  await page.getByPlaceholder("Email address").fill("d@jwt.com");
-  await page.getByPlaceholder("Password").fill("a");
+  await page.getByPlaceholder("Email address").fill(email);
+  await page.getByPlaceholder("Password").fill(password);
   await page.getByRole("button", { name: "Login" }).click();
+}
+
+// Helper function: Get random token
+function randomToken() {
+  return Math.random().toString(36).substr(2);
 }
 
 // Helper function: Set up routes for login and other API requests
 async function setupCommonRoutes(page) {
-  // Mock login route
+  // Mock login route (PUT)
   await page.route("*/**/api/auth", async (route) => {
-    const loginReq = { email: "d@jwt.com", password: "a" };
-    const loginRes = {
-      user: { id: 3, name: "Kai Chen", email: "d@jwt.com", roles: [{ role: "diner" }] },
-      token: "abcdef",
-    };
-    expect(route.request().method()).toBe("PUT");
-    expect(route.request().postDataJSON()).toMatchObject(loginReq);
-    await route.fulfill({ json: loginRes });
+    if (route.request().method() === "PUT") {
+      const loginReq = { email: "d@jwt.com", password: "a" };
+      const loginRes = {
+        user: { id: 3, name: "Kai Chen", email: "d@jwt.com", roles: [{ role: "diner" }] },
+        token: randomToken(),
+      };
+      expect(route.request().postDataJSON()).toMatchObject(loginReq);
+      await route.fulfill({ json: loginRes });
+    } else {
+      // Proceed to the next mock in case this is not a login request
+      route.continue();
+    }
+  });
+
+  // Mock register route (POST)
+  await page.route("*/**/api/auth", async (route) => {
+    if (route.request().method() === "POST") {
+      const registerReq = { name: "David Wallace", email: "w@jwt.com", password: "c" };
+      const registerRes = {
+        user: { id: 3, name: "David Wallace", email: "w@jwt.com", roles: [{ role: "diner" }] },
+        token: randomToken(),
+      };
+      expect(route.request().postDataJSON()).toMatchObject(registerReq);
+      await route.fulfill({ json: registerRes });
+    } else {
+      // Proceed to the next mock in case this is not a register request
+      route.continue();
+    }
   });
 
   // Mock menu route
@@ -98,8 +123,21 @@ test("home page", async ({ page }) => {
 // Test for login functionality
 test("login", async ({ page }) => {
   await setupCommonRoutes(page);
-  await login(page);
+  await login(page, "d@jwt.com", "a");
   await expect(page.getByRole("link", { name: "KC" })).toBeVisible(); // Check if user info is visible
+});
+
+// Test for registration functionality
+test("register", async ({ page }) => {
+  await setupCommonRoutes(page);
+  await page.goto("/");
+  await page.getByRole("link", { name: "Register" }).click();
+  await expect(page.getByPlaceholder("Full name")).toBeVisible();
+  await page.getByPlaceholder("Full name").fill("David Wallace");
+  await page.getByPlaceholder("Email address").fill("w@jwt.com");
+  await page.getByPlaceholder("Password").fill("c");
+  await page.getByRole("button", { name: "Register" }).click();
+  await expect(page.getByRole("link", { name: "DW" })).toBeVisible(); // Check if user info is visible
 });
 
 // Test for purchase with login
