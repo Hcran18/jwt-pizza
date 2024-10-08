@@ -267,3 +267,76 @@ test("create franchise", async ({ page }) => {
   await page.getByRole("button", { name: "Create" }).click();
   await expect(page.getByRole("cell", { name: "PizzaHut" })).toBeVisible();
 });
+
+// Test for close franchise
+test("close franchise", async ({ page }) => {
+  let franchiseId;
+  let franchiseDeleted = false;
+
+  await page.route("*/**/api/auth", async (route) => {
+    if (route.request().method() === "PUT") {
+      const loginReq = { email: "a@jwt.com", password: "admin" };
+      const loginRes = {
+        user: {
+          id: 1,
+          name: "常用名字",
+          email: "a@jwt.com",
+          roles: [{ role: "admin" }],
+          token: randomToken(),
+        },
+      };
+      expect(route.request().postDataJSON()).toMatchObject(loginReq);
+      await route.fulfill({ json: loginRes });
+    }
+  });
+
+  await page.route("*/**/api/franchise", async (route) => {
+    if (route.request().method() === "POST") {
+      const franchiseReq = { name: "PizzaHut" };
+      const franchiseRes = {
+        stores: [],
+        name: "PizzaHut",
+        id: 5,
+        admins: [{ email: "h@test.com", id: 2, name: "hunter" }],
+      };
+      expect(route.request().postDataJSON()).toMatchObject(franchiseReq);
+      franchiseId = franchiseRes.id;
+      await route.fulfill({ json: franchiseRes });
+    }
+  });
+
+  await page.route("*/**/api/franchise", async (route) => {
+    if (route.request().method() === "GET") {
+      if (franchiseDeleted) {
+        await route.fulfill({ json: [] });
+      } else {
+        const franchiseRes = [
+          {
+            id: franchiseId,
+            name: "PizzaHut",
+            admins: [{ email: "h@test.com", id: 2, name: "hunter" }],
+            stores: [],
+          },
+        ];
+        await route.fulfill({ json: franchiseRes });
+      }
+    }
+  });
+
+  await page.route(`*/**/api/franchise/${franchiseId}`, async (route) => {
+    if (route.request().method() === "DELETE") {
+      const deleteRes = { message: "Franchise deleted" };
+      franchiseDeleted = true;
+      await route.fulfill({ json: deleteRes });
+    }
+  });
+
+  await page.goto("http://localhost:5173/");
+  await login(page, "a@jwt.com", "admin");
+  await page.getByRole("link", { name: "Admin" }).click();
+  await page.getByRole("button", { name: "Close" }).click();
+  await expect(page.getByText("Sorry to see you go")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Close" })).toBeVisible();
+  await page.getByRole("button", { name: "Close" }).click();
+  await expect(page.locator("table")).not.toContainText("PizzaHut");
+});
