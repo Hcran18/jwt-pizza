@@ -208,3 +208,62 @@ test("purchase with login", async ({ page }) => {
   // Check balance
   await expect(page.getByText("0.008")).toBeVisible();
 });
+
+// Test for create franchise
+test("create franchise", async ({ page }) => {
+  await page.route("*/**/api/auth", async (route) => {
+    if (route.request().method() === "PUT") {
+      const loginReq = { email: "a@jwt.com", password: "admin" };
+      const loginRes = {
+        user: {
+          id: 1,
+          name: "常用名字",
+          email: "a@jwt.com",
+          roles: [{ role: "admin" }],
+          token: randomToken(),
+        },
+      };
+      expect(route.request().postDataJSON()).toMatchObject(loginReq);
+      await route.fulfill({ json: loginRes });
+    }
+  });
+
+  await page.route("*/**/api/franchise", async (route) => {
+    if (route.request().method() === "POST") {
+      const franchiseReq = { name: "PizzaHut" };
+      const franchiseRes = {
+        stores: [],
+        name: "PizzaHut",
+        id: 5,
+        admins: [{ email: "h@test.com", id: 2, name: "hunter" }],
+      };
+      expect(route.request().postDataJSON()).toMatchObject(franchiseReq);
+      await route.fulfill({ json: franchiseRes });
+    } else {
+      const franchiseRes = [
+        {
+          id: 1,
+          name: "PizzaHut",
+          admins: [{ email: "h@test.com", id: 2, name: "hunter" }],
+          stores: [],
+        },
+      ];
+      await route.fulfill({ json: franchiseRes });
+    }
+  });
+
+  await page.goto("/");
+  login(page, "a@jwt.com", "admin");
+  await expect(page.getByRole("link", { name: "Admin" })).toBeVisible();
+  await page.getByRole("link", { name: "Admin" }).click();
+  await expect(page.getByRole("button", { name: "Add Franchise" })).toBeVisible();
+  await page.getByRole("button", { name: "Add Franchise" }).click();
+  await page.getByPlaceholder("franchise name").click();
+  await page.getByPlaceholder("franchise name").fill("PizzaHut");
+  await page.getByPlaceholder("franchisee admin email").click();
+  await page.getByPlaceholder("franchisee admin email").fill("h@test.com");
+  await expect(page.getByText("Want to create franchise?CreateCancel")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Create" })).toBeVisible();
+  await page.getByRole("button", { name: "Create" }).click();
+  await expect(page.getByRole("cell", { name: "PizzaHut" })).toBeVisible();
+});
