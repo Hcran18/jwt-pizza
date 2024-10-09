@@ -1,5 +1,7 @@
 import exp from "constants";
+import { version } from "os";
 import { test, expect } from "playwright-test-coverage";
+import { config } from "process";
 
 // Helper function: Log in a user
 async function login(page, email, password) {
@@ -133,8 +135,36 @@ test("diner dashboard", async ({ page }) => {
 
 // Test for api docs
 test("api docs", async ({ page }) => {
+  await page.route("*/**/api/docs", async (route) => {
+    const docsRes = {
+      version: "1.0.0",
+      endpoints: [
+        {
+          method: "POST",
+          path: "/api/test",
+          requiresAuth: true,
+          description: "test api",
+          example:
+            'curl -X POST localhost:3000/api/test -d \'{ "email":"d@jwt.com", "password":"diner"}\' -H \'Content-Type: application/json\'',
+          response: {
+            test: {
+              id: 2,
+            },
+            token: "tttttt",
+          },
+        },
+      ],
+      config: {
+        factory: "fake factory",
+        service: "fake service",
+      },
+    };
+    await route.fulfill({ json: docsRes });
+  });
+
   await page.goto("/docs");
   await expect(page.getByText("JWT Pizza API")).toBeVisible();
+  await expect(page.getByText("[POST] /api/test")).toBeVisible();
 });
 
 // Test for purchase with login
