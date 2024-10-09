@@ -331,7 +331,7 @@ test("close franchise", async ({ page }) => {
     }
   });
 
-  await page.goto("http://localhost:5173/");
+  await page.goto("/");
   await login(page, "a@jwt.com", "admin");
   await page.getByRole("link", { name: "Admin" }).click();
   await page.getByRole("button", { name: "Close" }).click();
@@ -339,4 +339,66 @@ test("close franchise", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Close" })).toBeVisible();
   await page.getByRole("button", { name: "Close" }).click();
   await expect(page.locator("table")).not.toContainText("PizzaHut");
+});
+
+// Test for create store
+test("create store", async ({ page }) => {
+  let franchiseID = 5;
+  let userId;
+  let storeCreated = false;
+
+  await page.route("*/**/api/auth", async (route) => {
+    if (route.request().method() === "PUT") {
+      const loginReq = { email: "h@test.com", password: "h" };
+      const loginRes = {
+        user: {
+          id: 2,
+          name: "hunter",
+          email: "h@test.com",
+          roles: [{ role: "diner" }, { objectId: franchiseID, role: "franchisee" }],
+        },
+        token: randomToken(),
+      };
+      userId = loginRes.user.id;
+      expect(route.request().postDataJSON()).toMatchObject(loginReq);
+      await route.fulfill({ json: loginRes });
+    }
+  });
+
+  await page.route("**/api/franchise/**", async (route) => {
+    if (route.request().method() === "GET") {
+      const franchiseRes = [
+        {
+          id: franchiseID,
+          name: "PizzaHut",
+          admins: [{ email: "h@test.com", id: userId, name: "hunter" }],
+          stores: storeCreated ? [{ id: 1, name: "test store", totalRevenue: 0 }] : [],
+        },
+      ];
+      await route.fulfill({ json: franchiseRes });
+    } else if (route.request().method() === "POST") {
+      const storeReq = { name: "test store" };
+      const storeRes = {
+        id: 1,
+        name: "test store",
+        franchiseId: franchiseID,
+        admins: [{ email: "h@test.com", id: userId, name: "hunter" }],
+      };
+      expect(route.request().postDataJSON()).toMatchObject(storeReq);
+      storeCreated = true;
+      await route.fulfill({ json: storeRes });
+    }
+  });
+
+  await page.goto("/");
+  await login(page, "h@test.com", "h");
+  await expect(page.getByLabel("Global").getByRole("link", { name: "Franchise" })).toBeVisible();
+  await page.getByLabel("Global").getByRole("link", { name: "Franchise" }).click();
+  await expect(page.getByRole("button", { name: "Create Store" })).toBeVisible();
+  await page.getByRole("button", { name: "Create Store" }).click();
+  await expect(page.getByPlaceholder("store name")).toBeVisible();
+  await page.getByPlaceholder("store name").fill("test store");
+  await expect(page.getByRole("button", { name: "Create" })).toBeVisible();
+  await page.getByRole("button", { name: "Create" }).click();
+  await expect(page.getByRole("cell", { name: "test store" })).toBeVisible();
 });
