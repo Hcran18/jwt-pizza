@@ -1,3 +1,4 @@
+import exp from "constants";
 import { test, expect } from "playwright-test-coverage";
 
 // Helper function: Log in a user
@@ -102,9 +103,36 @@ test("history page", async ({ page }) => {
   await expect(page.getByText("Mama Rucci, my my")).toBeVisible();
 });
 
+// Test for diner dashboard
+test("diner dashboard", async ({ page }) => {
+  await page.route("*/**/api/auth", async (route) => {
+    if (route.request().method() === "PUT") {
+      const loginReq = { email: "h@test.com", password: "h" };
+      const loginRes = {
+        user: {
+          id: 2,
+          name: "hunter",
+          email: "h@test.com",
+          roles: [{ role: "diner" }],
+        },
+        token: randomToken(),
+      };
+      expect(route.request().postDataJSON()).toMatchObject(loginReq);
+      await route.fulfill({ json: loginRes });
+    }
+  });
+
+  await login(page, "h@test.com", "h");
+  await expect(page.getByRole("link", { name: "h", exact: true })).toBeVisible();
+  await page.getByRole("link", { name: "h", exact: true }).click();
+  await expect(page.getByText("Your pizza kitchen")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Buy one" })).toBeVisible();
+  await page.getByRole("link", { name: "Buy one" }).click();
+  await expect(page.getByText("Awesome is a click away")).toBeVisible();
+});
+
 // Test for purchase with login
 test("purchase with login", async ({ page }) => {
-  // Mock login route (PUT)
   await page.route("*/**/api/auth", async (route) => {
     if (route.request().method() === "PUT") {
       const loginReq = { email: "d@jwt.com", password: "a" };
